@@ -26,7 +26,10 @@ if ( ! defined( 'ABSPATH' ) ) {
 }
 
 define( 'PH_CLONER_PLUGIN_DIR', plugin_dir_path( __FILE__ ) );
-define( 'PH_CLONER_LOG_TABLE', 'ph_cloner_log' );
+define( 'PH_CLONER_PLUGIN_URL', plugin_dir_url(__FILE__));
+define( 'PH_CLONER_PLUGIN_BASENAME', plugin_basename(__FILE__));
+define( 'PH_CLONER_LOG_TABLE', 'wp_ph_cloner_log' );
+define( 'PH_CLONER_PLUGIN_VERSION', '0.0.3');
 
 // Load external libraries.
 require_once PH_CLONER_PLUGIN_DIR . 'ph-cloner-starter.php';
@@ -103,10 +106,7 @@ final class PH_Cloner {
 		global $wpdb;
 		$this->db = $wpdb;
                  $this->init();
-                
-                 //@todo debug
-                 add_shortcode('ph_cloner_start', 'ph_cloner_start');
-                 
+               
 	}
 
 	/**
@@ -198,6 +198,5 @@ function ph_cloner() {
 	return PH_Cloner::instance();
 }
 
-ph_cloner();
 
 

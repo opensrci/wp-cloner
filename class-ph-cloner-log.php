@@ -122,7 +122,7 @@ class PH_Cloner_Log {
 
         public function log( $message, $raw = true ) {
                 /* ignore log */
-                //$this->_log($message,"Info:");
+                $this->_log($message,"Info:");
                 return;
         }
 

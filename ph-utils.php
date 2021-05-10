@@ -152,40 +152,6 @@ function ph_recursive_search_replace( &$data, $search, $replace, $case_sensitive
 }
 
 /**
- * Copy directories and files recursively by queueing them in a background process
- *
- * Skip directories called 'sites' to avoid copying all sites storage in WP > 3.5
- *
- * @param string                $src Source directory path.
- * @param string                $dst Destination directory path (Relative).
- * @param WP_Background_Process $process Background process to use for queueing files.
- * @param int                   $num File number in queue.
- * @return int Number of files found
- */
-function ph_recursive_dir_copy_by_process( $src, $dst, $process, $num = 0 ) {
-	if ( is_dir( $src ) ) {
-		$files = scandir( $src );
-		// Specify items to ignore when copying.
-		$ignore = apply_filters( 'ph_cloner_dir_copy_ignore', [ 'sites', '.', '..' ] );
-		// Recursively copy files that aren't in the ignore array.
-		foreach ( $files as $file ) {
-			if ( ! in_array( $file, $ignore, true ) ) {
-				$num += ph_recursive_dir_copy_by_process( "$src/$file", "$dst/$file", $process, $num );
-			}
-		}
-	} elseif ( file_exists( $src ) ) {
-		$file = [
-			'number'      => ++ $num,
-			'source'      => $src,
-			'destination' => $dst,
-		];
-		$process->push_to_queue( $file );
-	}
-
-	return $num;
-}
-
-/**
  * Validate a potential new site and return an array of error messages.
  *
  * We used to use wpmu_validate_blog_signup here, but that caused too many issues due to the extra
@@ -198,16 +164,16 @@ function ph_recursive_dir_copy_by_process( $src, $dst, $process, $num = 0 ) {
  * @param string $site_title Title of new site.
  * @return array
  */
-function ph_wp_validate_site( $site_name, $site_title ) {
+function ph_wp_validate_site( $site_name ) {
 	global $domain;
-	$errors        = [];
 	// Preempt any spaces and uppercase chars.
 	$site_name = strtolower( trim( $site_name ) );
-	// Require some name.
+
+        // Require some name.
 	if ( empty( $site_name ) ) {
-		$errors[] = __( 'Site URL is required.', 'ph-cloner-site-copier' );
+                return false;
 	} elseif ( ! preg_match( '|^([a-z0-9-])+$|', $site_name ) ) {
-		$errors[] = __( 'Site URLs can only contain letters (a-z), numbers and hyphens.', 'ph-cloner-site-copier' );
+                return false;
 	}
 	if ( is_multisite() ) {
 		// Check if the domain/path has been used already.
@@ -221,21 +187,17 @@ function ph_wp_validate_site( $site_name, $site_title ) {
 			$path     = $base . $site_name . '/';
 		}
 		if ( domain_exists( $mydomain, $path, get_network()->id ) ) {
-			$errors[] = __('Sorry, that site already exists!', 'ph-cloner-site-copier');
+                        return false;
 		}
 		// Validate against WP illegal / reserved names.
 		$illegal_names  = get_site_option( 'illegal_names', [] );
 		$illegal_dirs   = get_subdirectory_reserved_names();
 		$illegal_values = is_subdomain_install() ? $illegal_names : array_merge ( $illegal_names, $illegal_dirs );
 		if ( in_array ( $site_name, $illegal_values ) ) {
-			$errors[] = __('That URL is reserved by WordPress.', 'ph-cloner-site-copier');
+                        return false;
 		}
 	}
-	// Require some title.
-	if ( empty( $site_title ) ) {
-		$errors[] = __( 'A site title is required', 'ph-cloner-site-copier' );
-	}
-	return apply_filters( 'ph_cloner_validate_site_errors', $errors, $site_name, $site_title );
+	return true;
 }
 
 /**

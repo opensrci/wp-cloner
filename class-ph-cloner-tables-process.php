@@ -90,19 +90,22 @@ class PH_Cloner_Tables_Process {
 			$request->exit_processes( __( 'Source and target prefix or id issue. Cannot clone tables.', 'ph-cloner-site-copier' ) );
                  }
 
-		// Queue table cloning background process.
+		// clone tables
 		$this->source_tables = ph_reorder_tables( ph_cloner()->get_site_tables( $this->source_id ) );
 		foreach ( $this->source_tables as $st ) {
 			$tt = preg_replace( "|^$this->source_prefix|", $this->target_prefix, $st );
                           $this->source_table  = $st;
                           $this->target_table  = $tt;
                           $this->copy_table();
-			ph_cloner_log()->log( "QUEUEING clone of *$this->source_table* to *$this->target_table*" );
+			ph_cloner_log()->log( "Clone from *$this->source_table* to *$this->target_table*" );
 		}
 
                  /* complete alter tables finishing */
                  ph_do_query ( $this->finishing_query['alter_tables'] );
                  ph_do_query ( $this->finishing_query['views'] );
+                 
+                 ph_cloner_log()->log_error( "$this->target_title table clone completed." );
+                 
 	}
         
         /**

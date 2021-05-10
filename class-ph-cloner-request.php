@@ -326,8 +326,10 @@ class PH_Cloner_Request {
                           return false;
 		}
 	}
-        public function exit_processes( $msg ){
+        public function getTargetSite(){
             
+        }
+        public function exit_processes( $msg ){
             wp_die($msg);
         }
 

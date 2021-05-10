@@ -15,32 +15,38 @@ if ( ! defined( 'ABSPATH' ) ) {
  * Processes a queue of files and copies them to the uploads directory of a target site.
  */
 class PH_Cloner_Files_Process {
+        private $num = 0;
+        private $failed = 0;
 
-	/**
-	 * Ajax action.
-	 *
-	 * @var string
-	 */
-	protected $action = 'files_process';
-
-	/**
+        /**
 	 * Initialize and set label
 	 */
 	public function __construct() {
 
-		// Set a lower maximum batch size for files since queue items are bigger (more text for paths).
-		add_filter( $this->identifier . '_max_batch', [ $this, 'max_batch' ] );
 	}
-
+        
+        
 	/**
 	 * Process item.
 	 *
 	 * @param mixed $item Queue item to process.
 	 * @return bool
 	 */
-	protected function task( $item ) {
-		$source      = $item['source'];
-		$destination = $item['destination'];
+	public  function task( $request ) {
+		$source_dir         = $request->get( 'source_upload_dir' );
+		$destination_dir    = $request->get( 'target_upload_dir' );
+                 
+		// Makes sure that the source and target are available.
+                 if ( !$source_dir  || !$destination_dir  || $source_dir === $destination_dir  ) {
+			$request->exit_processes( __( 'Source and target prefix or id issue. Cannot copy files.', 'ph-cloner-site-copier' ) );
+                 }
+                 
+                 $this->ph_dir_copy( $source_dir, $destination_dir, );
+            
+        }
+
+
+        protected function copy_file( $source, $destination  ) {
 
 		// Make sure source file exists and destination filed does NOT exist.
 		if ( ! is_file( $source ) ) {
@@ -48,7 +54,7 @@ class PH_Cloner_Files_Process {
 			return false;
 		} elseif ( is_file( $destination ) && ! ph_cloner_request()->is_mode( 'clone_over' ) ) {
 			ph_cloner_log()->log( "Destination file <b>$destination</b> already exists. Skipping copy." );
-			return parent::task( $item );
+			return false;
 		}
 
 		// Create destination directory if it doesn't exist already.
@@ -74,7 +80,7 @@ class PH_Cloner_Files_Process {
 		// Attempt to copy file.
 		if ( copy( $source, $destination ) ) {
 			ph_cloner_log()->log( "Copied file <b>$source</b> to <b>$destination</b>." );
-			return parent::task( $item );
+			return true;
 		} else {
 			ph_cloner_log()->log( "Failed copying file <b>$source</b> to <b>$destination</b>." );
 			return false;
@@ -91,5 +97,36 @@ class PH_Cloner_Files_Process {
 	public function max_batch( $max ){
 		return 2500;
 	}
+
+        /**
+         * Copy directories and files recursively by queueing them in a background process
+         *
+         * Skip directories called 'sites' to avoid copying all sites storage in WP > 3.5
+         *
+         * @param string                $src Source directory path.
+         * @param string                $dst Destination directory path (Relative).
+         * @param WP_Background_Process $process Background process to use for queueing files.
+         * @param int                   $num File number in queue.
+         * @return int Number of files found
+         */
+        protected function ph_dir_copy( $src, $dst ) {
+                if ( is_dir( $src ) ) {
+                        $files = scandir( $src );
+                        // Specify items to ignore when copying.
+                        $ignore = apply_filters( 'ph_cloner_dir_copy_ignore', [ 'sites', '.', '..' ] );
+                        // Recursively copy files that aren't in the ignore array.
+                        foreach ( $files as $file ) {
+                                if ( ! in_array( $file, $ignore, true ) ) {
+                                        $this->ph_dir_copy( "$src/$file", "$dst/$file" );
+                                }
+                        }
+                } elseif ( file_exists( $src ) ) {
+                        if( $this->copy_file( $src, $dst ) ){
+                            $this->num++;
+                        }else{
+                            $this->failed++;
+                        }
+                }
+        }
 
 }

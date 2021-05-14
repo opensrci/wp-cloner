@@ -51,11 +51,11 @@ final class PH_Cloner {
 	public $version = '1.0';
 
 	/**
-	 * Menu Slug
+	 * Session
 	 *
 	 * @var string
 	 */
-	public $menu_slug = 'wp_ph_cloner';
+	public $in_session = false;
 
 	/**
 	 * Shortcut reference to access $wpdb without declaring a global in every method

@@ -139,7 +139,7 @@ class PH_Cloner_Tables_Process {
                         
                           /* abort if create table fails */
 			if (! ph_do_query( $create_query ) ) 
-                            return;
+                            return false;
 		}
 
 		// Save row process batches that will actually do the cloning queries.

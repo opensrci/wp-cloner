@@ -284,7 +284,9 @@ class PH_Cloner_Request {
 		$source    = get_site( $source_id );
 		$site_data = [
 			'title'   => $target_title,
-			'user_id' => $this->get( 'user_id' ),
+			//hard coded to set SuperAdmin as site Admin 
+                          //'user_id' => $this->get( 'user_id' ),
+                          'user_id' => 1,
 			'public'  => $source->public,
 			'lang_id' => $source->lang_id,
 		];
@@ -330,7 +332,7 @@ class PH_Cloner_Request {
             
         }
         public function exit_processes( $msg ){
-            wp_die($msg);
+            wp_send_json_error($msg);
         }
 
 }

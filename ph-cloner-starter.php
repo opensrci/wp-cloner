@@ -5,14 +5,25 @@
  * To change this template file, choose Tools | Templates
  * and open the template in the editor.
  */
-define("PH_SOURCE_ID", 4);
+define("PH_SOURCE_ID", 27);
+define("PH_START_SITE_ID", 10);
 /* need pre-loaded */
 require_once PH_CLONER_PLUGIN_DIR . 'ph-utils.php';
 
-
-//@todo debug
+//short code for register
 add_shortcode('ph_cloner_start', 'ph_cloner_start');
 
+/* add action for pre-signon */
+add_action('lrm/login_pre_signon', 'ph_user_site_redirect', 10 );
+function ph_user_site_redirect($user_info){
+    $user_id = get_user_by("login",$user_info['user_login'])->ID;
+    $site_id = get_user_meta( $user_id, 'primary_blog', true );
+    switch_to_blog($site_id);
+    
+}
+
+/* add script */
+add_action ( 'wp_head', 'js_new_sitename_verify' );
 function js_new_sitename_verify(){ 
     ?>
 <script type="text/javascript">
@@ -21,8 +32,7 @@ function js_new_sitename_verify(){
 </script>
 <?php
 }
-add_action ( 'wp_head', 'js_new_sitename_verify' );
- 
+
 /**
  * New site form submit.
  *
@@ -33,47 +43,51 @@ add_action('wp_ajax_nopriv_ph_cloner_newsite_submit', 'newsite_submit');
 
 function newsite_submit(){
     check_ajax_referer( 'newsite-name-verify', 'security' );
-    
     $user_id = get_current_user_id();
     if (!$user_id){
         //not logged in
         wp_send_json_error(__( 'Please login first.', 'ph-cloner-site-copier' ));
     }
     /* get the user's primary site */
-    $blog = get_active_blog_for_user($user_id);
-    $blog_id = $blog->blog_id;
-    
-    if ( $blog_id > 4 ){
+    $blog_id = get_user_meta( $user_id, 'primary_blog', true );
+
+    if ( $blog_id >= PH_START_SITE_ID ){
         //primary site exists
-        wp_send_json_error(__( 'Your site was created.', 'ph-cloner-site-copier' ));
+        wp_send_json_error(__( 'Your site was created already.', 'ph-cloner-site-copier' ));
     }
     
     //need setup site
     $sitename = isset( $_POST['ph_cloner_newsite_input'] ) ? sanitize_text_field( $_POST['ph_cloner_newsite_input'] )  : '';
     if(!$sitename){
         /*not likely  */
-        wp_send_json_error(__( 'Site name required.', 'ph-cloner-site-copier' ));
+        wp_send_json_error(__( 'Site name is required.', 'ph-cloner-site-copier' ));
     }else if(!ph_wp_validate_site($sitename)) {
-        wp_send_json_error(__( 'Site name not available, try another one.', 'ph-cloner-site-copier' ));
+        wp_send_json_error(__( 'Site name is not available, try another one.', 'ph-cloner-site-copier' ));
     } else {
         /* good name */
-//todo debug
         //do clone
-        //$newsite_id = ph_do_cloner($user_id, $sitename, $sitename);
-$newsite_id = 22;
+        $newsite_id = ph_do_cloner($user_id, $sitename, $sitename);
 
         if($newsite_id){ 
             /* succeed */
             /* remove user from main sites */
-            if (1 != $user_id ) remove_user_from_blog($user_id, 0);
-            remove_user_from_blog($user_id, 1);
+            if ( 1 != $user_id ){
+                remove_user_from_blog($user_id, 0);
+                remove_user_from_blog($user_id, 1);
+            }
+            
+            /* update new site info */
+            $newsite_data = array(
+                "title" => $sitename,
+            );
+            wp_update_site($newsite_id, $newsite_data);
+            
             /* add user to the new site */
             add_user_to_blog( $newsite_id, $user_id, 'shop_manager' );
-            ph_cloner()->in_session = false;
+            wp_logout();    
             wp_send_json_success( 'New store '.$sitename.' is ready!');
         }else{
-            ph_cloner()->in_session = false;
-            wp_send_json_error(__( 'Oops, something wrong, please try again.', 'ph-cloner-site-copier' ));
+            wp_send_json_error(__( 'Oops, something went wrong, please try again.', 'ph-cloner-site-copier' ));
         }
     }
 }
@@ -90,30 +104,32 @@ wp_enqueue_scripts();
  */
 function ph_cloner_start(){
 
-    $current_user = get_current_user_id();
-    if ($current_user){
-        /* get the user's primary site */
-        $blog = get_active_blog_for_user($current_user);
-        $blog_id = $blog->blog_id;
-    }else{
-        //not logged in
+    $user_id = get_current_user_id();
+    if( !$user_id ){
+     /* not logged in, return for login */
         return;
     }
     
-    if ( 4 >= $blog_id && $current_user ){
-        /* user not on subsites */
-        ob_start();
-        include_once PH_CLONER_PLUGIN_DIR."views/ph_newsite_form.php";
-        return ob_get_clean();
-    }else if ($blog_id){
-        /* user belong to subsite */
-        if(!is_admin()){
-            wp_redirect(get_site_url($blog_id));
-        }
+    $current_site_id = get_current_blog_id();
+    $site_id = get_user_meta( $user_id, 'primary_blog', true );
+
+    /* if not super admin, send to user's subsite if not from main site or 
+     * user has assigned to a subsite
+     * 
+     *  */
+    if ( 1 != $user_id && ( 1 != $current_site_id || ( PH_START_SITE_ID <= $site_id  ) ) ){
+        $to_url = get_site_url($site_id);
+        /* redirect to user's site or home site */
+        $to_url = $to_url?$to_url:get_site_url(1);
+        wp_redirect($to_url);
+        return;
     }
     
+    /* available user: logged on main site and no subsites */
+    ob_start();
+    include_once PH_CLONER_PLUGIN_DIR."views/ph_newsite_form.php";
+    return ob_get_clean();
 }
-
 
 function ph_do_cloner( $user_id, $target_name, $target_title ){
     // Load classes and functions.
@@ -123,7 +139,6 @@ function ph_do_cloner( $user_id, $target_name, $target_title ){
     require_once PH_CLONER_PLUGIN_DIR . 'class-ph-cloner-tables-process.php';
     
     /* init, make sure session is set to start */
-    ph_cloner()->in_session = true;
     ph_cloner_log()->log_clear();
     $req = new PH_Cloner_Request();
     

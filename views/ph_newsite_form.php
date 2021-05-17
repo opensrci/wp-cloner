@@ -40,21 +40,31 @@ $user = wp_get_current_user()->user_login;
                      <div class="bounce2"></div>
                      <div class="bounce3"></div>
                      <div class="bounce4"></div>
-                     <span>Working hard on it.</span>
+                     <span>Working hard on it, need a couple of minutes ...</span>
                  </span>                
             </td>
 </form>
-<form action="/" method="post">
-            
+    
             <td>
+                <form action="https://demo.pos.host" method="post">
+                <input type="hidden" name="action_demo" value="ph_cloner_demo" style="display: none; visibility: hidden; opacity: 0;">
+                <button class="wp-block-button__link has-text-color has-background"
+                        style="background-color:#BFBFBF;color:#382b73"
+                        type="submit">Demo</button>
+                </form>
+            </td>
+
+            <td>
+                <form action="/" method="post">
                 <input type="hidden" name="action_cancel" value="ph_cloner_newsite_cancel" style="display: none; visibility: hidden; opacity: 0;">
                 <button class="wp-block-button__link has-text-color has-background"
                         style="color:#000;background-color:#BFBFBF;"
                         type="submit">I'm fine.</button>
+                </form>
             </td>
+
         </tr>
     </table>
-</form>
 <style>
 .spinner {
 }

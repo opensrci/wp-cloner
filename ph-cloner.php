@@ -31,7 +31,10 @@ define( 'PH_CLONER_PLUGIN_BASENAME', plugin_basename(__FILE__));
 define( 'PH_CLONER_LOG_TABLE', 'wp_ph_cloner_log' );
 define( 'PH_CLONER_PLUGIN_VERSION', '0.0.3');
 
-// Load external libraries.
+/* Load external libraries. 
+ * Class will not be init until called.
+ */
+
 require_once PH_CLONER_PLUGIN_DIR . 'ph-cloner-starter.php';
 
 /**
@@ -49,13 +52,6 @@ final class PH_Cloner {
 	 * @var string
 	 */
 	public $version = '1.0';
-
-	/**
-	 * Session
-	 *
-	 * @var string
-	 */
-	public $in_session = false;
 
 	/**
 	 * Shortcut reference to access $wpdb without declaring a global in every method

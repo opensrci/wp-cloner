@@ -13,6 +13,8 @@ jQuery(document).ready(function($) {
     form_data.push( { "name" : "security", "value" : ajax_nonce } );
     $('#ph_cloner_spinner').show();
     $(':input[type="submit"]').prop('disabled', true);
+    $('#menu-main').hide();
+    
     $.ajax({
         url : ajax_url,
         type : 'post',
@@ -20,14 +22,17 @@ jQuery(document).ready(function($) {
         success : function( response ) {
             $("#ph_cloner_spinner").hide();
             if( response.success ) {
-                $("#ph_cloner_notice").css({"color":"#558b2f" });
+                $("#ph_cloner_notice").css({"background-color":"#558b2f", "color":"#ffffff" });
             }else{
-                $("#ph_cloner_notice").css({"color":"#F76c6c"});
+                $("#ph_cloner_notice").css({"background-color":"#F76c6c", "color":"#ffffff"});
             }
             $("#ph_cloner_notice").text(response.data);
             $("#ph_cloner_notice").show();
             $(':input[type="submit"]').prop('disabled', false);
-            location.reload();
+            $('#menu-main').show();
+            if( response.success ) {
+                location.reload();
+            }
         },
         fail : function( err ) {
             $("#ph_cloner_spinner").hide();
@@ -35,6 +40,7 @@ jQuery(document).ready(function($) {
             $("#ph_cloner_notice").text(err.data);
             $("#ph_cloner_notice").show();
             $(':input[type="submit"]').prop('disabled', false);
+            $('#menu-main').show();
         }
     });
     });

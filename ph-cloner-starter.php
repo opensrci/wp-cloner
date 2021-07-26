@@ -5,8 +5,8 @@
  * To change this template file, choose Tools | Templates
  * and open the template in the editor.
  */
-define("PH_SOURCE_ID", 27);
-define("PH_START_SITE_ID", 10);
+define("PH_SOURCE_ID", 46);
+define("PH_START_SITE_ID", 3);
 /* need pre-loaded */
 require_once PH_CLONER_PLUGIN_DIR . 'ph-utils.php';
 
@@ -19,7 +19,6 @@ function ph_user_site_redirect($user_info){
     $user_id = get_user_by("login",$user_info['user_login'])->ID;
     $site_id = get_user_meta( $user_id, 'primary_blog', true );
     switch_to_blog($site_id);
-    
 }
 
 /* add script */
@@ -31,6 +30,57 @@ function js_new_sitename_verify(){
     var ajax_nonce = '<?php echo wp_create_nonce( "newsite-name-verify" ); ?>';
 </script>
 <?php
+}
+
+/**
+ * New site form submit.
+ *
+ * @return void
+ */
+add_action('wp_ajax_ph_cloner_newsite_namecheck', 'newsite_namecheck'); 
+add_action('wp_ajax_nopriv_ph_cloner_newsite_namecheck', 'newsite_namecheck');
+
+function newsite_namecheck(){
+    check_ajax_referer( 'newsite-name-verify', 'security' );
+    $user_id = get_current_user_id();
+    if (!$user_id){
+        //not logged in
+        wp_send_json_error(__( 'Please login first.', 'ph-cloner-site-copier' ));
+    }
+    /* get the user's primary site */
+    $blog_id = get_user_meta( $user_id, 'primary_blog', true );
+
+    if ( $blog_id >= PH_START_SITE_ID ){
+        //primary site exists
+        wp_send_json_error(__( 'Your site was created already.', 'ph-cloner-site-copier' ));
+    }
+    //need check
+    $sitename = isset( $_POST['sitename'] ) ? sanitize_title( $_POST['sitename'] )  : '';
+    if(!ph_wp_validate_site($sitename)) {
+        wp_send_json_error(__( 'Site name is not available, try another one.', 'ph-cloner-site-copier' ));
+    } else {
+        wp_send_json_success( __( 'Site url: '.$sitename.'.pos.host', 'ph-cloner-site-copier' ));
+    }
+}
+
+/* update blogname */
+function ph_update_blogname($site_id, $blogname){
+    global $wpdb;
+    if ( empty( $site_id ) || empty($blogname)) {
+        return false;
+    }
+    switch_to_blog( $site_id );
+    $serialized_value = maybe_serialize( sanitize_option( 'blogname', $blogname ) );
+    $update_args = array(
+        'option_value' => $serialized_value,
+        'autoload' => 'yes',
+    );
+    $result = $wpdb->update( $wpdb->options, $update_args, array( 'option_name' => 'blogname' ) );
+    restore_current_blog();
+    
+    if ( ! $result ) {
+        return false;
+    }
 }
 
 /**
@@ -57,7 +107,8 @@ function newsite_submit(){
     }
     
     //need setup site
-    $sitename = isset( $_POST['ph_cloner_newsite_input'] ) ? sanitize_text_field( $_POST['ph_cloner_newsite_input'] )  : '';
+    $storename = isset( $_POST['ph_cloner_newsite_input'] ) ? sanitize_text_field( $_POST['ph_cloner_newsite_input'] )  : '';
+    $sitename = sanitize_title($storename);
     if(!$sitename){
         /*not likely  */
         wp_send_json_error(__( 'Site name is required.', 'ph-cloner-site-copier' ));
@@ -66,7 +117,8 @@ function newsite_submit(){
     } else {
         /* good name */
         //do clone
-        $newsite_id = ph_do_cloner($user_id, $sitename, $sitename);
+        //$user_id - new site admin, hard coded in function to 1 ( network super admin )
+        $newsite_id = ph_do_cloner($user_id, $sitename, $storename);
 
         if($newsite_id){ 
             /* succeed */
@@ -75,16 +127,16 @@ function newsite_submit(){
                 remove_user_from_blog($user_id, 0);
                 remove_user_from_blog($user_id, 1);
             }
+
+            /* add user to the new site */
+            $ret = ph_update_blogname($newsite_id,$storename);
             
-            /* update new site info */
-            $newsite_data = array(
-                "title" => $sitename,
-            );
-            wp_update_site($newsite_id, $newsite_data);
-            
+            /* remove admin */
+            remove_user_from_blog($user_id, $newsite_id);
+            remove_user_from_blog(1, $newsite_id);
+
             /* add user to the new site */
             add_user_to_blog( $newsite_id, $user_id, 'shop_manager' );
-            wp_logout();    
             wp_send_json_success( 'New store '.$sitename.' is ready!');
         }else{
             wp_send_json_error(__( 'Oops, something went wrong, please try again.', 'ph-cloner-site-copier' ));
@@ -133,6 +185,8 @@ function ph_cloner_start(){
 
 function ph_do_cloner( $user_id, $target_name, $target_title ){
     // Load classes and functions.
+    // $target_title will be ignored.
+    
     require_once PH_CLONER_PLUGIN_DIR . 'class-ph-cloner-log.php';
     require_once PH_CLONER_PLUGIN_DIR . 'class-ph-cloner-request.php';
     require_once PH_CLONER_PLUGIN_DIR . 'class-ph-cloner-files-process.php';

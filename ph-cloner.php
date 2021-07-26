@@ -5,7 +5,7 @@
  * Description: pos.host site copier.
  * Author: pos.host
  * Author URI: https://pos.host/about
- * Version: 0.0.1
+ * Version: 0.1.0
  * Text Domain: woocommerce-pos-host
  * Domain Path: /i18n/languages/
  *
